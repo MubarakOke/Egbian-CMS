@@ -30,7 +30,9 @@ AUTH_USER_MODEL = 'accounts.User'
 DEBUG = True
 
 ALLOWED_HOSTS = ['127.0.0.1', 'egbian.herokuapp.com']
-
+CORS_ALLOWED_ORIGINS= [
+    "http://localhost:3000"
+]
 
 # Application definition
 
@@ -41,6 +43,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'corsheaders',
     'rest_framework',
     'rest_framework_simplejwt',
     'cloudinary',
@@ -51,6 +54,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'whitenoise.middleware.WhiteNoiseMiddleware',
+    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',

@@ -16,6 +16,7 @@ gunicorn = "*"
 whitenoise = "*"
 cloudinary = "*"
 django-cloudinary-storage = "*"
+django-cors-headers = "*"
 
 [dev-packages]
 
