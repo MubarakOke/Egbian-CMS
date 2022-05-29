@@ -5,11 +5,13 @@ name = "pypi"
 
 [packages]
 django = "==3.2"
-djangorestframework = "*"
 markdown = "*"
 django-filter = "*"
-djangorestframework-simplejwt = "*"
 python-dotenv = "*"
+psycopg2 = "*"
+pillow = "*"
+djangorestframework-simplejwt = "*"
+djangorestframework = "*"
 
 [dev-packages]
 
