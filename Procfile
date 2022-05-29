@@ -1,1 +1,1 @@
-web: gunicorn ejaiceAPI.wsgi
+web: gunicorn EgbianAPI.wsgi
