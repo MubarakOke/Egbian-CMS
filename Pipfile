@@ -12,6 +12,10 @@ psycopg2 = "*"
 pillow = "*"
 djangorestframework-simplejwt = "*"
 djangorestframework = "*"
+gunicorn = "*"
+whitenoise = "*"
+cloudinary = "*"
+django-cloudinary-storage = "*"
 
 [dev-packages]
 
