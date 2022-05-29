@@ -18,7 +18,6 @@ def get_tokens_for_user(user):
         'access': str(refresh.access_token),
     }
 
-
 class AuthenticateApplicantView(APIView):
     permission_classes= []
     authentication_classes= []
@@ -44,7 +43,6 @@ class AuthenticateApplicantView(APIView):
                                 "user": UserSerializer(user_obj).data,                                           
                                 }, status=200)
         return Response({"error": "invalid login details"}, status=400)
-
 
 class AuthenticateStudentView(APIView):
     permission_classes= []
