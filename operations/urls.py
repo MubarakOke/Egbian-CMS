@@ -9,5 +9,5 @@ urlpatterns = [
     path('session/', SessionCreateListView.as_view(), name='create_session'),
     # Applicant URL
     path('applicant/', ApplicantCreateView.as_view(), name='create_applicant'),
-    path('update/<id>/', ApplicantUpdateView.as_view(), name='update_applicant')
+    path('applicant/<int:id>/', ApplicantUpdateView.as_view(), name='update_applicant')
 ]

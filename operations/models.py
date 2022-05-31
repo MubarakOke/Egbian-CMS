@@ -6,10 +6,10 @@ User= get_user_model()
 
 
 def applicant_primary_cert_location(instance, filename):
-    return f"Applicant/{instance.user.email}/primary_cert/{filename}"
+    return f"Applicant/{instance.email}/primary_cert/{filename}"
 
 def applicant_birth_cert_location(instance, filename):
-    return f"Applicant/{instance.user.email}/birth_cert/{filename}"
+    return f"Applicant/{instance.email}/birth_cert/{filename}"
 
 def applicant_image_location(instance, filename):
     return f"Applicant/{instance.email}/passport/{filename}"

@@ -90,16 +90,16 @@ class ApplicantSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError({"details":"email not sent"})
         return applicant_obj
 
-class UpdateApplicantView(serializers.ModelSerializer):
+class UpdateApplicantSerializer(serializers.ModelSerializer):
     user= UserSerializer(read_only=True)
     class Meta:
         model= Applicant
         fields= [
                 'id',
                 'user',
+                'email',
                 'first_name', 
                 'last_name',
-                'email',
                 'phone',
                 'nationality',
                 'state',
@@ -107,26 +107,26 @@ class UpdateApplicantView(serializers.ModelSerializer):
                 'jamb_reg_no',
                 'dob',
                 'gender',
+                'mode_of_entry',
+                'is_admitted',
                 'picture',
                 'primary_cert',
                 'birth_cert',
-                'mode_of_entry'
                 ]
 
     def update(self, instance, validated_data):
-        instance.first_name = validated_data.get('first_name', instance.first_name)
-        instance.last_name= validated_data.get('last_name', instance.last_name)
-        instance.email= validated_data.get('email', instance.email)
+        instance.first_name = validated_data.get('first_name', instance.first_name).lower()
+        instance.last_name= validated_data.get('last_name', instance.last_name).lower()
         instance.phone= validated_data.get('phone', instance.phone)
-        instance.nationality= validated_data.get('nationality', instance.nationality)
-        instance.state= validated_data.get('state', instance.state)
-        instance.lga= validated_data.get('lga', instance.lga)
-        instance.jamb_reg_no= validated_data.get('jamb_reg_no', instance.jamb_reg_no)
+        instance.nationality= validated_data.get('nationality', instance.nationality).lower()
+        instance.state= validated_data.get('state', instance.state).lower()
+        instance.lga= validated_data.get('lga', instance.lga).lower()
+        instance.jamb_reg_no= validated_data.get('jamb_reg_no', instance.jamb_reg_no).upper()
         instance.dob= validated_data.get('dob', instance.dob)
-        instance.gender= validated_data.get('gender', instance.gender)
+        instance.gender= validated_data.get('gender', instance.gender).lower()
         instance.picture= validated_data.get('picture', instance.picture)
-        instance.primary_cert= validated_data.get('priinstance.primary_cert', instance.primary_cert)
+        instance.primary_cert= validated_data.get('primary_cert', instance.primary_cert)
         instance.birth_cert= validated_data.get('birth_cert', instance.birth_cert)
-        instance.mode_of_entry= validated_data.get('mode_of_entry', instance.mode_of_entry)
+        instance.mode_of_entry= validated_data.get('mode_of_entry', instance.mode_of_entry).lower()
         instance.save()
         return instance

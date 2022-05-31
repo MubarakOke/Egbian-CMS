@@ -20,13 +20,29 @@ class SessionCreateListView(CreateModelMixin, ListAPIView):
     def post(self, request, *args, **kwargs):
         return self.create(request, *args, **kwargs)
         
-class ApplicantCreateView(CreateAPIView):
+class ApplicantCreateView(CreateModelMixin, ListAPIView):
     parser_classes = (JSONParser, MultiPartParser, FormParser)
     serializer_class= serializers.ApplicantSerializer
     renderer_classes= [DefaultRenderer]
+    queryset= Applicant.objects.all()
     permission_classes= []
-class ApplicantUpdateView(UpdateAPIView):
+
+    def post(self, request, *args, **kwargs):
+        return self.create(request, *args, **kwargs)
+
+class ApplicantUpdateView(UpdateModelMixin, DestroyModelMixin, RetrieveAPIView):
     parser_classes = (JSONParser, MultiPartParser, FormParser)
-    serializer_class= serializers.ApplicantSerializer
+    serializer_class= serializers.UpdateApplicantSerializer
     renderer_classes= [DefaultRenderer]
+    lookup_field= 'id'
+    queryset= Applicant.objects.all()
     permission_classes= []
+
+    def put(self, request, *args, **kwargs):
+        return self.update(request, *args, **kwargs)
+    
+    def patch(self, request, *args, **kwargs):
+        return self.update(request, *args, kwargs)
+
+    def delete(self, request, *args, **kwargs):
+        return self.destroy(request, *args, **kwargs)

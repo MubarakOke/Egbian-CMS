@@ -155,6 +155,7 @@ if DEBUG:
     )
 
 REST_FRAMEWORK = {
+
     'DEFAULT_AUTHENTICATION_CLASSES': (
         'rest_framework_simplejwt.authentication.JWTAuthentication',
     ),
@@ -200,6 +201,8 @@ SIMPLE_JWT = {
     'SLIDING_TOKEN_LIFETIME': timedelta(minutes=5),
     'SLIDING_TOKEN_REFRESH_LIFETIME': timedelta(days=1),
 }
+
+DATE_INPUT_FORMATS = ('%y-%m-%d', '%y/%m/%d')
 
 CLOUDINARY_STORAGE = {
     'CLOUD_NAME' : os.environ.get('CLOUD_NAME'),
