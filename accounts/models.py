@@ -4,12 +4,10 @@ from django.contrib.auth.models import (
 )
 
 class MyUserManager(BaseUserManager):
-    def create_user(self, username, user_type, position, password=None):
-
+    def create_user(self, username, user_type, password=None):
         user = self.model(
             username= username,
-            user_type= user_type,   
-            position = position 
+            user_type= user_type,
         )
 
         user.set_password(password)
@@ -20,10 +18,8 @@ class MyUserManager(BaseUserManager):
         user = self.create_user(
             username= username,
             user_type= "admin",
-            position= "admin",
             password=password,    
         )
-
         user.is_super_admin = True
         user.save(using=self._db)
         return user
@@ -32,9 +28,7 @@ class MyUserManager(BaseUserManager):
 class User(AbstractBaseUser):
     username= models.CharField(max_length=255, blank=False, null=False, unique=True)
     user_type= models.CharField(max_length=255, blank=True, null=True)
-    position= models.CharField(max_length=255, blank=True, null=True)
     objects = MyUserManager()
-
 
     USERNAME_FIELD = 'username'
     REQUIRED_FIELDS = [] 
@@ -50,6 +44,6 @@ class User(AbstractBaseUser):
 
     @property
     def is_staff(self):
-        return self.user_type=='staff'
+        return self.user_type=="admin"
     
     

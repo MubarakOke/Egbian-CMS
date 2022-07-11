@@ -1,7 +1,8 @@
-from tracemalloc import start
+from requests import session
 from rest_framework import serializers
 from accounts.serializers import UserSerializer
-from operations.models import Applicant, Session
+from operations.models import Applicant, Session, Staff, Role, Department, Faculty
+from django.db.utils import IntegrityError
 from django.contrib.auth import get_user_model
 from operations.utils import EmailThread
 from django.conf import settings
@@ -26,7 +27,7 @@ class SessionSerializer(serializers.ModelSerializer):
         start_year= attrs.get('start_year')
         end_year= attrs.get('end_year') 
         if start_year > end_year:
-            raise ValidationError("start year cannot be higher than end year")
+            raise serializers.ValidationError("start year cannot be higher than end year")
         return attrs
     
     def create(self, validated_data):
@@ -65,12 +66,12 @@ class ApplicantSerializer(serializers.ModelSerializer):
             session_obj= Session.objects.get(current_session=True)
         except:
             raise serializers.ValidationError({"details":"Session not set"}) 
-        applicant_id= int(str(session_obj.start_year) + "00000") 
+        applicant_id= int(str(session_obj.start_year) + "000000000") 
         user_obj= User.objects.create(
-                                    user_type= "applicant",
-                                    position= "applicant",
+                                    user_type= "applicant"
                                     )
-        username= f"APP{str(applicant_id + int(user_obj.id))}"
+        applicant_id= applicant_id + user_obj.id
+        username= f"APP{str(applicant_id)}"
         user_obj.username= username
         user_obj.set_password(validated_data.pop('password', None))
 
@@ -90,7 +91,7 @@ class ApplicantSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError({"details":"email not sent"})
         return applicant_obj
 
-class UpdateApplicantSerializer(serializers.ModelSerializer):
+class ApplicantUpdateSerializer(serializers.ModelSerializer):
     user= UserSerializer(read_only=True)
     class Meta:
         model= Applicant
@@ -128,5 +129,161 @@ class UpdateApplicantSerializer(serializers.ModelSerializer):
         instance.primary_cert= validated_data.get('primary_cert', instance.primary_cert)
         instance.birth_cert= validated_data.get('birth_cert', instance.birth_cert)
         instance.mode_of_entry= validated_data.get('mode_of_entry', instance.mode_of_entry).lower()
+        instance.save()
+        return instance
+
+class StaffCreateListSerializer(serializers.ModelSerializer):
+    user= UserSerializer(read_only=True)
+    class Meta:
+        model= Staff
+        fields= [
+                    'user',
+                    'first_name',
+                    'last_name',
+                    'middle_name',
+                    'nationality',
+                    'state',
+                    'lga',
+                    'phone',
+                    'dob',
+                    'gender',
+                    'department',
+                    'staff_type'
+                ]
+    def create(self, validated_data): 
+        user_obj= User.objects.create(
+                                    user_type= "staff"
+                                    )
+        try:
+            session_obj= Session.objects.get(current_session=True)
+        except:
+            raise serializers.ValidationError({"details":"Session not set"}) 
+        user_obj.username= f"Egb{str(session_obj.start_year)}{str(user_obj.id)}"
+        user_obj.set_password(validated_data.pop('password'))
+
+        staff_obj = Staff.objects.create(user=user_obj, 
+                                        session= session_obj, 
+                                        email= validated_data.get('email'),
+                                        first_name= validated_data.get('first_name'),
+                                        last_name= validated_data.get('last_name'),
+                                        middle_name= validated_data.get('middle_name'),
+                                        nationality= validated_data.get('nationality'),
+                                        state= validated_data.get('state'),
+                                        lga= validated_data.get('lga'),
+                                        phone= validated_data.get('phone'),
+                                        dob= validated_data.get('dob'),
+                                        gender= validated_data.get('gender'),
+                                        department= validated_data.get('department'),
+                                        staff_type= validated_data.get('staff_type').lower()
+                                        )
+        return staff_obj
+
+class RoleCreateListSerializer(serializers.ModelSerializer):
+    staff= StaffCreateListSerializer(read_only=True)
+    class Meta:
+        model= Role
+        fields= [ 
+                'name',
+                'staff'
+                ]
+    def create(self, validated_data):
+        try:
+            role_obj= Role.objects.create(name=validated_data.get('name').lower())
+        except IntegrityError:
+            raise serializers.ValidationError("role with this name already exists")
+        return role_obj
+
+    def update(self, instance, validated_data):
+        instance.name= validated_data.get('name', instance.name)
+        instance.save()
+        return instance
+
+class StaffAddRoleSerializer(serializers.ModelSerializer):
+    staff_id_list= serializers.ListField(write_only=True)
+    name= serializers.CharField(read_only=True)
+    class Meta:
+        model= Role
+        fields= [ 
+                'id',
+                'name',
+                'staff',
+                'staff_id_list',
+                ]
+
+    def update(self, instance, validated_data):
+        for id in validated_data.get('staff_id_list', instance.name):
+            staff_obj= Staff.objects.get(id=id)
+            instance.staff.add(staff_obj)
+        instance.save()
+        return instance
+
+class FacultyCreateListSerializer(serializers.ModelSerializer):
+    class Meta:
+        model= Faculty
+        fields= [ 
+                    'id',
+                    'name'
+                ]
+
+    def create(self, validated_data):
+        try:
+            faculty_obj= Faculty.objects.create(name=validated_data.get('name').lower())
+        except IntegrityError:
+            raise serializers.ValidationError("faculty with this name already exits")
+        return faculty_obj
+
+    def update(self, instance, validated_data):
+        instance.name= validated_data.get('name', instance.name)
+        instance.save()
+        return instance
+
+class DepartmentCreateListSerializer(serializers.ModelSerializer):
+    faculty= FacultyCreateListSerializer(read_only=True)
+    faculty_id= serializers.CharField(write_only=True, required=False)
+    class Meta:
+        model= Department
+        fields= [ 
+                    'id',
+                    'name',
+                    'short_name',
+                    'faculty',
+                    'faculty_id'
+                ]
+    
+    def create(self, validated_data):
+        try:
+            faculty_object= Faculty.objects.get(id=validated_data.get('faculty_id'))
+            department_obj= Department.objects.create(name=validated_data.get('name').lower(),
+                                                      short_name=validated_data.get('short_name').lower(),
+                                                      faculty=faculty_object)
+        except IntegrityError:
+            raise serializers.ValidationError("Department with this name already exits")
+        except Faculty.DoesNotExist:
+            raise serializers.ValidationError("Falculty with this id does not exist")
+        return department_obj
+
+class DepartmentUpdateSerializer(serializers.ModelSerializer):
+    faculty= FacultyCreateListSerializer(read_only=True)
+    name= serializers.CharField(required=False)
+    short_name= serializers.CharField(required=False)
+    class Meta:
+        model= Department
+        fields= [ 
+                    'id',
+                    'name',
+                    'short_name',
+                    'faculty',
+                    'faculty_id'
+                ]
+
+    def update(self, instance, validated_data):
+        instance.name= validated_data.get('name', instance.name)
+        instance.short_name= validated_data.get('short_name', instance.short_name)
+        if validated_data.get('faculty_id'):
+            try:
+                faculty_object= Faculty.objects.get(id=validated_data.get('faculty_id'))
+                instance.faculty= faculty_object
+            except:
+                raise serializers.ValidationError() 
         instance.save()
         return instance
