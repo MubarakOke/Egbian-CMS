@@ -287,4 +287,3 @@ class DepartmentUpdateSerializer(serializers.ModelSerializer):
                 raise serializers.ValidationError() 
         instance.save()
         return instance
-
