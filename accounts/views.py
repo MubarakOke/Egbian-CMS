@@ -24,6 +24,7 @@ def get_tokens_for_user(user):
 class AuthenticateApplicantView(APIView):
     permission_classes= []
     authentication_classes= []
+    renderer_classes= [DefaultRenderer]
 
     def post(self, request, *args, **kwargs):
         if request.user.is_authenticated:
@@ -114,6 +115,7 @@ class AuthenticateApplicantView(APIView):
 class AuthenticateStudentView(APIView):
     permission_classes= []
     authentication_classes= []
+    renderer_classes= [DefaultRenderer]
 
     def post(self, request, *args, **kwargs):
         if request.user.is_authenticated:
@@ -169,7 +171,7 @@ class AuthenticateStudentView(APIView):
 class AuthenticateLecturerView(APIView):
     permission_classes= []
     authentication_classes= []
-    renderer_classes= []
+    renderer_classes= [DefaultRenderer]
 
     def post(self, request, *args, **kwargs):
         if request.user.is_authenticated:
