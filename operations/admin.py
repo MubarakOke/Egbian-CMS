@@ -13,7 +13,7 @@ admin.site.register(models.NotificationStudent)
 admin.site.register(models.Role)
 admin.site.register(models.Staff)
 admin.site.register(models.CourseRequirement)
-# admin.site.register(models.CourseRegistration)
+admin.site.register(models.CourseRegistrationStatus)
 
 # admin.site.register()
 # admin.site.register()

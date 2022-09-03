@@ -5,7 +5,7 @@ from operations.views import (DashboardView, SessionCreateListView, RoleCreateLi
                             StudentCreateListView, StudentDetailView,
                             CourseCreateListView, CourseDetailView,
                             CourseRequirementCreateListView, CourseRequirementdetailView,
-                            CourseRegistrationListCreateView, CourseToRegisterView)
+                            CourseRegistrationListCreateView, CourseToRegisterView, CourseWareView,)
 
 app_name= 'operations'
 
@@ -41,5 +41,7 @@ urlpatterns = [
     # Course Registration
     path('course/registration/', CourseRegistrationListCreateView.as_view(), name='create_registration_course'),
     path('course/registration/info/', CourseToRegisterView.as_view(), name='create_registration_course'),
+    # Course Wares
+    path('courseware/', CourseWareView.as_view(), name='course_wares'),
 
 ]

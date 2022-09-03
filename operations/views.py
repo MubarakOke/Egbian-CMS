@@ -1,4 +1,3 @@
-from requests import session
 from rest_framework.response import Response
 from rest_framework.generics import ListAPIView, RetrieveAPIView, UpdateAPIView, CreateAPIView, GenericAPIView
 from rest_framework.mixins import CreateModelMixin, UpdateModelMixin, DestroyModelMixin, ListModelMixin
@@ -6,13 +5,13 @@ from rest_framework.parsers import JSONParser, MultiPartParser, FormParser
 from rest_framework.views import APIView
 from django.conf import settings
 from operations.renderers import DefaultRenderer
-from operations.models import Applicant, Session, Staff, Role, Department, Faculty, Course, CourseRegistration, CourseRequirement, Result
+from operations.models import Applicant, Session, Staff, Role, Department, Faculty, Course, CourseRegistration, CourseRequirement, Result, Payment, Fee
 from operations import serializers
 from rest_framework.response import Response
 from operations.utils import EmailThread
-from django.db.models import Q
+from django.db.models import Q, F
 
-from .models import Role, Student, Department, Session, Applicant
+from .models import Role, Student, Department, Session, Applicant, CourseRegistrationStatus, CourseRegistration
 
 # Create your views here.
 
@@ -305,41 +304,99 @@ class CourseToRegisterView(APIView):
         try:
             student_obj= request.user.student
         except:
-            return Response({"detail": "user is not a student"}, 404)
+            return Response({"Error": "user is not a student"}, 404)
+
+        try:
+                session_obj= Session.objects.get(current_session=True)
+        except:
+                raise serializers.ValidationError({"details":"Session not set"})
+
+        registration_status= student_obj.courseregistrationstatus.filter(Q(session=session_obj) & Q(status=True))
+        if registration_status:
+            registered_courses=  CourseRegistration.objects.filter(Q(student=student_obj) & Q(session=session_obj)).select_related("course").values(
+                                                                                                                                                    course_name=F("course__course_name"),  
+                                                                                                                                                    course_code=F("course__course_code"),
+                                                                                                                                                    level=F("course__level"),
+                                                                                                                                                    course_unit=F("course__course_unit"),
+                                                                                                                                                    compulsory=F("course__compulsory"),
+                                                                                                                                                    department=F("course__department"),
+                                                                                                                                                    semester=F("course__semester")
+                                                                                                                                                    )
+
+            course_registered_first= registered_courses.filter(course__semester="first")
+            course_registered_second= registered_courses.filter(course__semester="second")
+            return Response({"status":"registered",
+                            "details": {
+                                    "course_registered_first": course_registered_first,
+                                    "course_registered_second": course_registered_second,
+                                    }})
+
         course_requirement_obj= CourseRequirement.objects.filter(Q(level=student_obj.level) & Q(department=student_obj.department)).order_by('semester')
         course_requirement_obj_first= course_requirement_obj[0]
         course_requirement_obj_second= course_requirement_obj[1]
         course_objs= Course.objects.filter(Q(level=student_obj.level) & Q(department=student_obj.department))
-        course_list_first= []
-        course_list_second= []
-        for course in course_objs:
-            if course.prerequsite_for:
-                prerequsite_course_obj= Course.objects.filter(prerequsite_for=course.prerequsite_for).first()
-                try:
-                    result_for_course= Result.objects.filter(Q(course=prerequsite_course_obj) & Q(student= request.user.student)).latest()
-                except:
-                    return Response({"details":"no result of prerequsite course"})
-                if result_for_course.score < 40.0:
-                    if prerequsite_course_obj.semester.lower() == "first":
-                        course_list_first.append(prerequsite_course_obj)
-                    else:
-                        course_list_second.append(prerequsite_course_obj)
-                else:
-                    if prerequsite_course_obj.semester.lower() == "first":
-                        course_list_first.append(course)
-                    else:
-                        course_list_second.append(course)
-            else:
-                if course.semester.lower() == "first":
-                    course_list_first.append(course)
-                else:
-                    course_list_second.append(course)
-        return Response({"details": {
+        course_list_first= course_objs.filter(Q(semester="first"))
+        course_list_second= course_objs.filter(Q(semester="second"))
+
+        
+        return Response({"status":"unregistered",
+                        "details": {
                                     "requirement_first": serializers.CourseRequirementCreateListSerializer(course_requirement_obj_first).data,
-                                    "courses_first":serializers.CourseCreateListSerializer(course_list_first, many=True).data,
+                                    "course_first":serializers.CourseCreateListSerializer(course_list_first, many=True).data,
                                     "requirement_second": serializers.CourseRequirementCreateListSerializer(course_requirement_obj_second).data,
-                                    "courses_second": serializers.CourseCreateListSerializer(course_list_second, many=True).data
+                                    "course_second": serializers.CourseCreateListSerializer(course_list_second, many=True).data,
                                     }})
+
+class CourseWareView(APIView):
+    parser_classes = (JSONParser, MultiPartParser, FormParser)
+    renderer_classes= [DefaultRenderer]
+    permission_classes= []
+
+    def get(self, request, *args, **kwargs):
+        try:
+            student_obj= request.user.student
+        except:
+            return Response({"Error": "user is not a student"}, 404)
+
+        course_ware= Course.objects.filter(Q(department=student_obj.department))
+        course_ware_first= course_ware.filter(Q(semester="first"))
+        course_ware_second= course_ware.filter(Q(semester="second"))
+        
+        return Response({"details": {
+                                    "course_ware_first": serializers.CourseCreateListSerializer(course_ware_first, many=True).data,
+                                    "course_ware_second": serializers.CourseCreateListSerializer(course_ware_second, many=True).data,
+                                    }})
+
+
+class CourseRegistrationListCreateView(CreateModelMixin, ListAPIView):
+    parser_classes = (JSONParser, MultiPartParser, FormParser)
+    renderer_classes= [DefaultRenderer]
+    serializer_class= serializers.CourseRegistrationCreateListSerializer
+    queryset= CourseRegistration.objects.all()
+    permission_classes= []
+
+    def get_serializer_context(self):
+        return {"request": self.request}
+
+    def get_queryset(self):
+        q= self.request.GET.get('q', None)
+        try:
+                session_obj= Session.objects.get(current_session=True)
+        except:
+                return ""
+        if q:
+            try:
+                session_obj= Session.objects.get(start_year=q)
+            except:
+                return ""
+        try:
+            return self.queryset.filter(Q(session=session_obj) and Q(student=self.request.user.sudent))
+        except:
+            return ""
+
+    def post(self, request, *args, **kwargs):
+        return self.create(request, *args, **kwargs)
+
 
                 
 class ApplicantStatusChangeView(APIView):
@@ -394,10 +451,110 @@ class ApplicantStatusChangeView(APIView):
                     "birth_cert": applicant_obj.birth_cert,
                     "mode_of_entry": applicant_obj.mode_of_entry,
                     "status": applicant_obj.status,
-                    "student_type": student_type
+                    "student_type": student_type,
+                    "next_kin_name": applicant_obj.next_kin_name,
+                    "next_kin_relationship": applicant_obj.next_kin_relationship,
+                    "next_kin_email": applicant_obj.next_kin_email,
+                    "next_kin_address": applicant_obj.next_kin_address,
+                    "next_kin_phone": applicant_obj.next_kin_phone,
+                    "secondary_cert": applicant_obj.secondary_cert,
+                    "testimonial": applicant_obj.testimonial
                     }
             student_obj= Student.objects.update_or_create(user__username=applicant_obj.user.username, defaults=data)
             # print(student_obj)
         applicant_obj.save()
         return Response({"details": "applicant status changed successfully"}, 200)
 
+
+class TuitionPaymentView(APIView):
+    parser_classes = (JSONParser, MultiPartParser, FormParser)
+    renderer_classes= [DefaultRenderer]
+    permission_classes= []
+
+    def get(self, request, *args, **kwargs):
+        try:
+            student_obj= request.user.student
+        except:
+            return Response({"Error": "user is not a student"}, 404)
+        
+        try:
+            session_obj= Session.objects.get(current_session=True)
+        except:
+            return Response({"Error": "Session not set"}, 404)
+        
+        get_tuition_payment= Payment.objects.filter(Q(student=student_obj) & Q(session=session_obj))
+        if get_tuition_payment:
+            return Response({"status": "paid",
+                             "details": serializers.PaymentSerializer(get_tuition_payment)}, 200)
+        # fee_obj= Fee.objects.get(Q(name="tuition") & Q(session=))
+
+
+        
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# class CourseToRegisterView(APIView):
+#     parser_classes = (JSONParser, MultiPartParser, FormParser)
+#     renderer_classes= [DefaultRenderer]
+#     permission_classes= []
+
+#     def get(self, request, *args, **kwargs):
+#         try:
+#             student_obj= request.user.student
+#         except:
+#             return Response({"detail": "user is not a student"}, 404)
+#         course_requirement_obj= CourseRequirement.objects.filter(Q(level=student_obj.level) & Q(department=student_obj.department)).order_by('semester')
+#         course_requirement_obj_first= course_requirement_obj[0]
+#         course_requirement_obj_second= course_requirement_obj[1]
+#         course_objs= Course.objects.filter(Q(level=student_obj.level) & Q(department=student_obj.department))
+#         course_list_first= []
+#         course_list_second= []
+#         carried_over_courses= result_for_course= Result.objects.filter(Q(score_lt=40) & Q(student= request.user.student)).latest()
+#         for course in course_objs:
+#             if course.prerequsite_for:
+#                 prerequsite_course_obj= Course.objects.filter(prerequsite_for=course.prerequsite_for).first()
+#                 # try:
+#                 #     result_for_course= Result.objects.filter(Q(course=prerequsite_course_obj) & Q(student= request.user.student)).latest()
+#                 # except:
+#                 #     return Response({"details":"no result of prerequsite course"})
+#                 result_for_course= Result.objects.filter(Q(course=prerequsite_course_obj) & Q(student= request.user.student)).latest()
+#                 if not result_for_course:
+#                     if prerequsite_course_obj.semester.lower() == "first":
+#                         course_list_first.append(prerequsite_course_obj)
+#                     else:
+#                         course_list_second.append(prerequsite_course_obj)
+#                 elif result_for_course.score < 40.0:
+#                     if prerequsite_course_obj.semester.lower() == "first":
+#                         course_list_first.append(prerequsite_course_obj)
+#                     else:
+#                         course_list_second.append(prerequsite_course_obj)
+#                 else:
+#                     if prerequsite_course_obj.semester.lower() == "first":
+#                         course_list_first.append(course)
+#                     else:
+#                         course_list_second.append(course)
+#             else:
+#                 if course.semester.lower() == "first":
+#                     course_list_first.append(course)
+#                 else:
+#                     course_list_second.append(course)
+#         return Response({"details": {
+#                                     "requirement_first": serializers.CourseRequirementCreateListSerializer(course_requirement_obj_first).data,
+#                                     "courses_first":serializers.CourseCreateListSerializer(course_list_first, many=True).data,
+#                                     "requirement_second": serializers.CourseRequirementCreateListSerializer(course_requirement_obj_second).data,
+#                                     "courses_second": serializers.CourseCreateListSerializer(course_list_second, many=True).data
+#                                     }})

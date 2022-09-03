@@ -63,8 +63,14 @@ class AuthenticateApplicantView(APIView):
                                 "is_admitted":user_obj.applicant.is_admitted,
                                 "picture":user_obj.applicant.pictureURL,
                                 "primary_cert":user_obj.applicant.primary_certURL,
+                                "secondary_cert":user_obj.student.secondary_certURL,
+                                "testimonial":user_obj.student.testimonialURL,
                                 "birth_cert":user_obj.applicant.birth_certURL,
-
+                                "next_kin_name":user_obj.applicant.next_kin_name,
+                                "next_kin_relationship":user_obj.applicant.next_kin_relationship,
+                                "next_kin_email":user_obj.applicant.next_kin_email,
+                                "next_kin_address":user_obj.applicant.next_kin_address,
+                                "next_kin_phone":user_obj.applicant.next_kin_phone,
                                 }, status=200)
         return Response({"error": "invalid login details"}, status=400)
 
@@ -155,6 +161,8 @@ class AuthenticateStudentView(APIView):
                                 "status": user_obj.student.status,
                                 "picture":user_obj.student.pictureURL,
                                 "primary_cert":user_obj.student.primary_certURL,
+                                "secondary_cert":user_obj.student.secondary_certURL,
+                                "testimonial":user_obj.student.testimonialURL,
                                 "birth_cert":user_obj.student.birth_certURL,
                                 "marital_status":user_obj.student.marital_status,
                                 "religion":user_obj.student.religion,
@@ -163,6 +171,11 @@ class AuthenticateStudentView(APIView):
                                 "student_type":user_obj.student.student_type,
                                 "next_kin_fullname":user_obj.student.next_kin_fullname,
                                 "next_kin_relationship":user_obj.student.next_kin_relationship,
+                                "next_kin_address":user_obj.student.next_kin_address,
+                                "next_kin_phone":user_obj.student.next_kin_phone,
+                                "next_kin_name":user_obj.student.next_kin_name,
+                                "next_kin_relationship":user_obj.student.next_kin_relationship,
+                                "next_kin_email":user_obj.student.next_kin_email,
                                 "next_kin_address":user_obj.student.next_kin_address,
                                 "next_kin_phone":user_obj.student.next_kin_phone,
                                 }, status=200)

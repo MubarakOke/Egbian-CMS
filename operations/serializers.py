@@ -2,7 +2,7 @@ from functools import reduce
 from rest_framework import serializers
 from django.db.utils import IntegrityError
 from accounts.serializers import UserSerializer
-from operations.models import Applicant, Session, Staff, Role, Department, Faculty, Course, CourseRegistration, Result, Student, CourseRequirement
+from operations.models import Applicant, Session, Staff, Role, Department, Faculty, Course, CourseRegistration, Result, Student, CourseRequirement, CourseRegistrationStatus, Payment
 from django.db.utils import IntegrityError
 from django.contrib.auth import get_user_model
 from operations.utils import EmailThread
@@ -153,7 +153,14 @@ class ApplicantSerializer(serializers.ModelSerializer):
                 'is_admitted',
                 'picture',
                 'primary_cert',
+                'secondary_cert',
+                'testimonial',
                 'birth_cert',
+                'next_kin_name',
+                'next_kin_relationship',
+                'next_kin_email',
+                'next_kin_address',
+                'next_kin_phone'
                 ]
 
     def create(self, validated_data): 
@@ -171,7 +178,7 @@ class ApplicantSerializer(serializers.ModelSerializer):
         user_obj.username= username
         user_obj.set_password(validated_data.pop('password', None))
 
-        applicant_obj = Applicant.objects.create(user=user_obj, session= session_obj, calendar=calendar, email= validated_data.get('email'), phone=validated_data.get('phone') )        
+        applicant_obj = Applicant.objects.create(user=user_obj, session= session_obj, calendar=calendar, email= validated_data.get('email').lower(), phone=validated_data.get('phone') )        
         # Constructing email parameters
         try:
             subject= 'Login details to Egbian College of Health'
@@ -216,6 +223,13 @@ class ApplicantUpdateSerializer(serializers.ModelSerializer):
                 'picture',
                 'primary_cert',
                 'birth_cert',
+                'secondary_cert',
+                'testimonial',
+                'next_kin_name',
+                'next_kin_relationship',
+                'next_kin_email',
+                'next_kin_address',
+                'next_kin_phone'
                 ]
 
     def update(self, instance, validated_data):
@@ -232,8 +246,15 @@ class ApplicantUpdateSerializer(serializers.ModelSerializer):
         instance.picture= validated_data.get('picture', instance.picture)
         instance.primary_cert= validated_data.get('primary_cert', instance.primary_cert)
         instance.birth_cert= validated_data.get('birth_cert', instance.birth_cert)
+        instance.secondary_cert= validated_data.get('secondary_cert', instance.secondary_cert)
+        instance.testimonial= validated_data.get('testimonial', instance.testimonial)
         instance.mode_of_entry= validated_data.get('mode_of_entry', instance.mode_of_entry).lower()
         instance.department= validated_data.get('department_id', instance.department)
+        instance.next_kin_name= validated_data.get('next_kin_name', instance.next_kin_name)
+        instance.next_kin_relationship= validated_data.get('next_kin_relationship', instance.next_kin_relationship)
+        instance.next_kin_email= validated_data.get('next_kin_email', instance.next_kin_email)
+        instance.next_kin_address= validated_data.get('next_kin_address', instance.next_kin_address)
+        instance.next_kin_phone= validated_data.get('next_kin_phone', instance.next_kin_phone)
         instance.save()
         return instance
 
@@ -376,10 +397,8 @@ class CourseCreateListSerializer(serializers.ModelSerializer):
 class CourseRegistrationCreateListSerializer(serializers.ModelSerializer):
     total_credit_first= serializers.CharField(write_only=True)
     total_credit_second= serializers.CharField(write_only=True)
-    course_list_first= serializers.ListField(write_only=True, required=False)
-    course_list_first_selected= serializers.ListField(write_only=True, required=False)
-    course_list_second= serializers.ListField(write_only=True, required=False)
-    course_list_second_selected= serializers.ListField(write_only=True, required=False)
+    course_list_first_selected= serializers.ListField(write_only=True, required=True)
+    course_list_second_selected= serializers.ListField(write_only=True, required=True)
     course= CourseCreateListSerializer(read_only=True)
     class Meta:
         model= CourseRegistration
@@ -389,72 +408,41 @@ class CourseRegistrationCreateListSerializer(serializers.ModelSerializer):
                 'course',
                 'total_credit_first',
                 'total_credit_second',
-                'course_list_first',
                 'course_list_first_selected',
-                'course_list_second',
                 'course_list_second_selected'
                 ]
     
     def create(self, validated_data):
         request= self.context.get('request')
+
         try:
                 session_obj= Session.objects.get(current_session=True)
         except:
                 raise serializers.ValidationError({"details":"Session not set"})
 
         sum_credit_first= reduce(self.add_course_unit, validated_data.get('course_list_first_selected'))
-        if sum_credit_first.get("course_unit") > validated_data.get("total_credit_first"):
+
+        if int(sum_credit_first.get("course_unit")) > int(validated_data.get("total_credit_first")):
             raise serializers.ValidationError({"details":"Max credit exceeded for first semester"})
 
         sum_credit_second= reduce(self.add_course_unit, validated_data.get('course_list_second_selected'))
-        if sum_credit_second.get("course_unit") > validated_data.get("total_credit_second"):
+        if int(sum_credit_second.get("course_unit")) > int(validated_data.get("total_credit_second")):
             raise serializers.ValidationError({"details":"Max credit exceeded for second semester"})
-
-        list_compulsory_course_first= list(filter(self.rid, validated_data.get("course_list_first")))
-        list_compulsory_course_selected_first= list(filter(self.rid, validated_data.get("course_list_first_selected")))
-        selected_all_first= any(x not in list_compulsory_course_first for x in list_compulsory_course_selected_first)
-        if not selected_all_first:
-            raise serializers.ValidationError({"details":"Please select all required courses for first semester"})
-
-        list_compulsory_course_second= list(filter(self.rid, validated_data.get("course_list_second")))
-        list_compulsory_course_selected_second= list(filter(self.rid, validated_data.get("course_list_second_selected")))
-        selected_all_second= any(x not in list_compulsory_course_second for x in list_compulsory_course_selected_second)
-        if not selected_all_second:
-            raise serializers.ValidationError({"details":"Please select all required courses for second semester"})
-
         validated_data.get("course_list_first_selected").extend(validated_data.get("course_list_second_selected"))
         try:
-            course_to_register= [ CourseRegistration(session=session_obj, calendar=f"{session_obj.start_year}/{session_obj.end_year}", student=request.user.student, course= course) for course in validated_data.get("course_list_first_selected")]
+            course_to_register= [ CourseRegistration(session=session_obj, calendar=f"{session_obj.start_year}/{session_obj.end_year}", student=request.user.student, course= Course.objects.get(id=course['id'])) for course in validated_data.get("course_list_first_selected")]
+            CourseRegistrationStatus.objects.create(student=request.user.student, session=session_obj, status=True)
         except:
             raise serializers.ValidationError({"details":"user not signed in or user not a student"})
 
         course_registration_objs= CourseRegistration.objects.bulk_create(course_to_register)
         return course_registration_objs
-        # count=0
-        # course_list=[]
-        # for course in validated_data.get('course_list'):
-        #     count+=1
-        #     if course.prerequsite_for:
-        #         prerequsite_course_obj= Course.objects.filter(prerequsite_for=course.prerequsite_for).first()
-        #         try:
-        #             result_for_course= Result.objects.filter(Q(course=prerequsite_course_obj) & Q(student= request.user.student)).latest()
-        #         except:
-        #             raise serializers.ValidationError({"details":"user not signed in or user not a student"})
-        #         if result_for_course.score < 40.0:
-        #             raise serializers.ValidationError({"details": "you have failed a prerequsite courses, kindly register the prerequsite course instead"})
-        #     try:
-        #         session_obj= Session.objects.get(current_session=True)
-        #     except:
-        #         raise serializers.ValidationError({"details":"Session not set"})
-        #     obj= CourseRegistration(session=session_obj, calendar=f"{session_obj.start_year}/{session_obj.end_year}", student=request.user.student, course= course)
-        #     course_list.append(obj)
 
-        # course_registration_objs= CourseRegistration.objects.bulk_create(course_list)
     
-    def add_course_unit(course_a, course_b):
+    def add_course_unit(self, course_a, course_b):
         return {"course_unit": course_a["course_unit"] + course_b["course_unit"]}
 
-    def rid(course_a):
+    def rid(self, course_a):
         return course_a.get("compulsory")
 
 class CourseRequirementCreateListSerializer(serializers.ModelSerializer):
@@ -516,14 +504,91 @@ class StudentCreateListSerializer(serializers.ModelSerializer):
                     'religion',
                     'phone',
                     'address',
-                    'next_kin_fullname',
+                    'next_kin_name',
                     'next_kin_relationship',
                     'next_kin_address',
                     'next_kin_phone',
+                    'next_kin_email',
                     'picture',
                     'primary_cert',
                     'birth_cert',
+                    'secondary_cert',
+                    'testimonial',
                     'mode_of_entry',
                     'status',
                     'student_type'
                 ]
+
+class PaymentSerializer(serializers.ModelSerializer):
+    class Meta:
+        model= Payment
+        fields= [
+                "id",
+                "name",
+                "amount",
+                "ref",
+                "session",
+                "calender",
+                "student",
+                "verified",
+                "timestamp",
+                "date_made"
+                ]
+
+# class CourseRegistrationCreateListSerializer(serializers.ModelSerializer):
+#     total_credit_first= serializers.CharField(write_only=True)
+#     total_credit_second= serializers.CharField(write_only=True)
+#     course_list_first= serializers.ListField(write_only=True, required=False)
+#     course_list_first_selected= serializers.ListField(write_only=True, required=False)
+#     course_list_second= serializers.ListField(write_only=True, required=False)
+#     course_list_second_selected= serializers.ListField(write_only=True, required=False)
+#     course= CourseCreateListSerializer(read_only=True)
+#     class Meta:
+#         model= CourseRegistration
+#         fields= [
+#                 'calendar',
+#                 'student',
+#                 'course',
+#                 'total_credit_first',
+#                 'total_credit_second',
+#                 'course_list_first',
+#                 'course_list_first_selected',
+#                 'course_list_second',
+#                 'course_list_second_selected'
+#                 ]
+    
+#     def create(self, validated_data):
+#         request= self.context.get('request')
+#         try:
+#                 session_obj= Session.objects.get(current_session=True)
+#         except:
+#                 raise serializers.ValidationError({"details":"Session not set"})
+
+#         sum_credit_first= reduce(self.add_course_unit, validated_data.get('course_list_first_selected'))
+#         if sum_credit_first.get("course_unit") > validated_data.get("total_credit_first"):
+#             raise serializers.ValidationError({"details":"Max credit exceeded for first semester"})
+
+#         sum_credit_second= reduce(self.add_course_unit, validated_data.get('course_list_second_selected'))
+#         if sum_credit_second.get("course_unit") > validated_data.get("total_credit_second"):
+#             raise serializers.ValidationError({"details":"Max credit exceeded for second semester"})
+
+#         list_compulsory_course_first= list(filter(self.rid, validated_data.get("course_list_first")))
+#         list_compulsory_course_selected_first= list(filter(self.rid, validated_data.get("course_list_first_selected")))
+#         selected_all_first= any(x not in list_compulsory_course_first for x in list_compulsory_course_selected_first)
+#         if not selected_all_first:
+#             raise serializers.ValidationError({"details":"Please select all required courses for first semester"})
+
+#         list_compulsory_course_second= list(filter(self.rid, validated_data.get("course_list_second")))
+#         list_compulsory_course_selected_second= list(filter(self.rid, validated_data.get("course_list_second_selected")))
+#         selected_all_second= any(x not in list_compulsory_course_second for x in list_compulsory_course_selected_second)
+#         if not selected_all_second:
+#             raise serializers.ValidationError({"details":"Please select all required courses for second semester"})
+
+#         validated_data.get("course_list_first_selected").extend(validated_data.get("course_list_second_selected"))
+#         try:
+#             course_to_register= [ CourseRegistration(session=session_obj, calendar=f"{session_obj.start_year}/{session_obj.end_year}", student=request.user.student, course= course) for course in validated_data.get("course_list_first_selected")]
+#         except:
+#             raise serializers.ValidationError({"details":"user not signed in or user not a student"})
+
+#         course_registration_objs= CourseRegistration.objects.bulk_create(course_to_register)
+#         return course_registration_objs

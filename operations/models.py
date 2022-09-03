@@ -14,6 +14,12 @@ def applicant_birth_cert_location(instance, filename):
 
 def applicant_image_location(instance, filename):
     return f"Applicant/{instance.email}/passport/{filename}"
+
+def applicant_secondary_cert_location(instance, filename):
+    return f"Applicant/{instance.email}/secondary_cert/{filename}"
+
+def applicant_testimonial_location(instance, filename):
+    return f"Applicant/{instance.email}/testimonial/{filename}"
 # Create your models here.
 class Session(models.Model):
     start_year = models.CharField(max_length=10, blank=True, null=True)
@@ -34,6 +40,7 @@ class Faculty(models.Model):
     timestamp = models.DateTimeField(auto_now=True)
     def __str__(self):
         return self.name
+        
 class Department(models.Model):
     name= models.CharField(max_length=255, blank=False, null=False, unique=True)
     short_name= models.CharField(max_length=255, blank=False, null=False, unique=True)
@@ -72,9 +79,16 @@ class Applicant(models.Model):
     gender= models.CharField(max_length=10, blank=True, null=True)
     picture= models.ImageField(upload_to=applicant_image_location, blank=True, null=True)
     primary_cert= models.FileField(upload_to=applicant_primary_cert_location, blank=True, null=True)
+    secondary_cert= models.FileField(upload_to=applicant_secondary_cert_location, blank=True, null=True)
     birth_cert= models.FileField(upload_to=applicant_birth_cert_location, blank=True, null=True)
+    testimonial= models.FileField(upload_to=applicant_testimonial_location, blank=True, null=True)
     mode_of_entry= models.CharField(max_length=10, blank=True, null=True)
     status= models.CharField(max_length=155, blank=True, null=True, choices=ADMISSION_CHOICES, default="pending")
+    next_kin_name= models.CharField(max_length=255, blank=True, null=True)
+    next_kin_relationship= models.CharField(max_length=255, blank=True, null=True)
+    next_kin_email= models.EmailField(max_length=255, blank=True, null=True)
+    next_kin_address= models.CharField(max_length=255, blank=True, null=True)
+    next_kin_phone= models.CharField(max_length=255, blank=True, null=True)
     is_admitted = models.BooleanField(default=False)
     date_created= models.DateTimeField(auto_now_add=True)
     timestamp = models.DateTimeField(auto_now=True)
@@ -89,6 +103,18 @@ class Applicant(models.Model):
     def primary_certURL(self):
         if self.primary_cert :
             return self.primary_cert.url
+        return None
+    
+    @property
+    def secondary_certURL(self):
+        if self.secondary_cert:
+            return self.secondary_cert.url
+        return None
+        
+    @property
+    def testimonialURL(self):
+        if self.testimonial:
+            return self.testimonial.url
         return None
     
     @property
@@ -134,11 +160,14 @@ class Student(models.Model):
     picture= models.ImageField(upload_to=applicant_image_location, blank=True, null=True)
     primary_cert= models.FileField(upload_to=applicant_primary_cert_location, blank=True, null=True)
     birth_cert= models.FileField(upload_to=applicant_birth_cert_location, blank=True, null=True)
+    secondary_cert= models.FileField(upload_to=applicant_secondary_cert_location, blank=True, null=True)
+    testimonial= models.FileField(upload_to=applicant_testimonial_location, blank=True, null=True)
     mode_of_entry= models.CharField(max_length=10, blank=True, null=True)
     status= models.CharField(max_length=155, blank=True, null=True, choices=ADMISSION_CHOICES, default="pending")
     student_type= models.CharField(max_length=255, blank=True, null=True)
-    next_kin_fullname= models.CharField(max_length=255, blank=True, null=True)
+    next_kin_name= models.CharField(max_length=255, blank=True, null=True)
     next_kin_relationship= models.CharField(max_length=255, blank=True, null=True)
+    next_kin_email= models.EmailField(max_length=255, blank=True, null=True)
     next_kin_address= models.CharField(max_length=255, blank=True, null=True)
     next_kin_phone= models.CharField(max_length=255, blank=True, null=True)
     date_created= models.DateTimeField(auto_now_add=True)
@@ -146,16 +175,28 @@ class Student(models.Model):
     
     @property
     def pictureURL(self):
-        if self.picture :
+        if self.picture:
             return self.picture.url
         return None
 
     @property
     def primary_certURL(self):
-        if self.primary_cert :
+        if self.primary_cert:
             return self.primary_cert.url
         return None
-    
+
+    @property
+    def secondary_certURL(self):
+        if self.secondary_cert:
+            return self.secondary_cert.url
+        return None
+
+    @property
+    def testimonialURL(self):
+        if self.testimonial:
+            return self.testimonial.url
+        return None
+
     @property
     def birth_certURL(self):
         if self.birth_cert :
@@ -218,6 +259,12 @@ class CourseRegistration(models.Model):
     course= models.ForeignKey(Course, blank=True, null=True, on_delete= models.SET_NULL, related_name="courseregistration")
     date_created= models.DateTimeField(auto_now_add=True)
     timestamp = models.DateTimeField(auto_now=True)
+    
+
+class CourseRegistrationStatus(models.Model):
+    student= models.ForeignKey(Student, blank=True, on_delete= models.CASCADE, related_name="courseregistrationstatus")
+    session= models.ForeignKey(Session, blank=True, null=True, on_delete= models.SET_NULL, related_name="courseregistrationstatus")
+    status= models.BooleanField(default=False)
 
 class NotificationStudent(models.Model):
     student= models.ForeignKey(Student, blank=True, on_delete= models.CASCADE, related_name="notificationstudent")
@@ -294,12 +341,13 @@ class Payment(models.Model):
     verified= models.BooleanField(default=False)
     timestamp= models.DateTimeField(auto_now=True)
     date_made= models.DateTimeField(auto_now_add=True)
-    date_created= models.DateTimeField(auto_now_add=True)
-    timestamp = models.DateTimeField(auto_now=True)
 
-
-class fee(models.Model):
-    name= models.CharField(max_length=255)
+FEE_CHOICES= (
+                ("tuition", "tuition"),
+                ("acceptance", "acceptance")
+               )
+class Fee(models.Model):
+    name= models.CharField(max_length=255, choices=FEE_CHOICES)
     amount= models.PositiveBigIntegerField()
     session= models.ForeignKey(Session, blank=True, null=True, on_delete= models.SET_NULL, related_name="fee")
     calendar= models.CharField(max_length=255, blank=True, null=True)
