@@ -9,6 +9,7 @@ from operations.models import Applicant, Session, Staff, Role, Department, Facul
 from operations import serializers
 from rest_framework.response import Response
 from operations.utils import EmailThread
+from django.core.mail import send_mail
 from django.db.models import Q, F
 
 from .models import Role, Student, Department, Session, Applicant, CourseRegistrationStatus, CourseRegistration
@@ -38,13 +39,13 @@ class ApplicantCreateListView(CreateModelMixin, ListAPIView):
             if q=="all":
                 return self.queryset
             else:
-                return self.queryset.filter(session__start_year=q)
+                return self.queryset.filter(Q(session__start_year=q) & Q(is_admitted=False))
                 
         try:
             session_obj= Session.objects.get(current_session=True)
         except:
             return ""
-        return self.queryset.filter(session=session_obj)
+        return self.queryset.filter(Q(session=session_obj) & Q(is_admitted=False))
 
     def post(self, request, *args, **kwargs):
         return self.create(request, *args, **kwargs)
@@ -91,6 +92,23 @@ class StaffCreateListView(CreateModelMixin, ListAPIView):
 
     def post(self, request, *args, **kwargs):
         return self.create(request, *args, **kwargs)
+
+class StaffDetailView(UpdateModelMixin, DestroyModelMixin, RetrieveAPIView):
+    parser_classes = (JSONParser, MultiPartParser, FormParser)
+    renderer_classes= [DefaultRenderer]
+    serializer_class= serializers.StaffUpdateSerializer
+    queryset= Staff.objects.all()
+    permission_classes= []
+    lookup_field= 'id'
+
+    def put(self, request, *args, **kwargs):
+        return self.update(request, *args, **kwargs)
+    
+    def patch(self, request, *args, **kwargs):
+        return self.update(request, *args, kwargs)
+
+    def delete(self, request, *args, **kwargs):
+        return self.destroy(request, *args, **kwargs)
 
 class StudentCreateListView(CreateModelMixin, ListAPIView):
     parser_classes = (JSONParser, MultiPartParser, FormParser)
@@ -213,7 +231,7 @@ class FacultyDetailView(UpdateModelMixin, DestroyModelMixin, RetrieveAPIView):
 class CourseCreateListView(CreateModelMixin, ListAPIView):
     parser_classes = (JSONParser, MultiPartParser, FormParser)
     renderer_classes= [DefaultRenderer]
-    serializer_class= serializers.CourseCreateListSerializer
+    serializer_class= serializers.CourseCreateListUpdateSerializer
     queryset= Course.objects.all()
     permission_classes= []
 
@@ -223,7 +241,7 @@ class CourseCreateListView(CreateModelMixin, ListAPIView):
 class CourseDetailView(UpdateModelMixin, DestroyModelMixin, RetrieveAPIView):
     parser_classes = (JSONParser, MultiPartParser, FormParser)
     renderer_classes= [DefaultRenderer]
-    serializer_class= serializers.CourseCreateListSerializer
+    serializer_class= serializers.CourseCreateListUpdateSerializer
     queryset= Course.objects.all()
     lookup_field= 'id'
     permission_classes= []
@@ -419,6 +437,7 @@ class ApplicantStatusChangeView(APIView):
             applicant_obj.is_admitted= True
             applicant_obj.user.user_type="student"
             applicant_obj.user.save()
+            level=100
             if applicant_obj.mode_of_entry=="utme":
                 level= 100
                 student_type= "undergraduate"
@@ -460,7 +479,18 @@ class ApplicantStatusChangeView(APIView):
                     "secondary_cert": applicant_obj.secondary_cert,
                     "testimonial": applicant_obj.testimonial
                     }
-            student_obj= Student.objects.update_or_create(user__username=applicant_obj.user.username, defaults=data)
+            student_obj, created= Student.objects.update_or_create(user__username=applicant_obj.user.username, defaults=data)
+            try:
+                subject= 'Admission Offer'
+                message= f'Dear {student_obj.last_name} {student_obj.first_name} {student_obj.middle_name}, \nCongratulation on your admission into Egbian College of Health Science, We are glad to have you on, Use your appliacant details to access your student portal\n \n \nAccount ID: {student_obj.user.username} \n \n \nPlease do not reply to this email. This email is not monitored'
+                from_email= settings.EMAIL_HOST_USER
+                recipient_list= [student_obj.email]
+                fail_silently=False
+                # Sending email on a new thread
+                send_mail(subject, message, from_email, recipient_list, fail_silently)
+            except:
+                student_obj.delete()
+                raise serializers.ValidationError({"details":"email not sent"})
             # print(student_obj)
         applicant_obj.save()
         return Response({"details": "applicant status changed successfully"}, 200)

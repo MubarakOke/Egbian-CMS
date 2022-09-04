@@ -20,6 +20,10 @@ def applicant_secondary_cert_location(instance, filename):
 
 def applicant_testimonial_location(instance, filename):
     return f"Applicant/{instance.email}/testimonial/{filename}"
+
+def staff_image_location(instance, filename):
+    return f"Applicant/{instance.email}/testimonial/{filename}"
+
 # Create your models here.
 class Session(models.Model):
     start_year = models.CharField(max_length=10, blank=True, null=True)
@@ -40,7 +44,7 @@ class Faculty(models.Model):
     timestamp = models.DateTimeField(auto_now=True)
     def __str__(self):
         return self.name
-        
+
 class Department(models.Model):
     name= models.CharField(max_length=255, blank=False, null=False, unique=True)
     short_name= models.CharField(max_length=255, blank=False, null=False, unique=True)
@@ -54,6 +58,10 @@ ADMISSION_CHOICES =(
                 ("admitted", "admitted"),
                 ("rejected", "rejected"),
                 ("pending", "pending"),
+                )
+GENDER_CHOICES =(
+                ("male", "male"),
+                ("female", "female")
                 )
 class Applicant(models.Model):
     user= models.OneToOneField(User, blank=True, on_delete= models.CASCADE, related_name="applicant")
@@ -76,7 +84,7 @@ class Applicant(models.Model):
     department= models.ForeignKey(Department, blank=True, null=True, on_delete= models.CASCADE, related_name="applicant")
     phone= models.CharField(max_length=15, blank=True, null=True)
     dob= models.DateField(blank=True, null=True)
-    gender= models.CharField(max_length=10, blank=True, null=True)
+    gender= models.CharField(max_length=10, blank=True, null=True, choices=GENDER_CHOICES)
     picture= models.ImageField(upload_to=applicant_image_location, blank=True, null=True)
     primary_cert= models.FileField(upload_to=applicant_primary_cert_location, blank=True, null=True)
     secondary_cert= models.FileField(upload_to=applicant_secondary_cert_location, blank=True, null=True)
@@ -92,6 +100,7 @@ class Applicant(models.Model):
     is_admitted = models.BooleanField(default=False)
     date_created= models.DateTimeField(auto_now_add=True)
     timestamp = models.DateTimeField(auto_now=True)
+    application_fee_paid= models.BooleanField(default=False)
 
     @property
     def pictureURL(self):
@@ -152,7 +161,7 @@ class Student(models.Model):
     level= models.CharField(max_length=255, blank=True, null=True)
     address= models.CharField(max_length=255, blank=True, null=True)
     blood_group= models.CharField(max_length=10, blank=True, null=True)
-    gender= models.CharField(max_length=10, blank=True, null=True)
+    gender= models.CharField(max_length=10, blank=True, null=True, choices=GENDER_CHOICES)
     marital_status= models.CharField(max_length=25, blank=True, null=True)
     religion= models.CharField(max_length=100, blank=True, null=True)
     phone= models.CharField(max_length=15, blank=True, null=True)
@@ -163,7 +172,7 @@ class Student(models.Model):
     secondary_cert= models.FileField(upload_to=applicant_secondary_cert_location, blank=True, null=True)
     testimonial= models.FileField(upload_to=applicant_testimonial_location, blank=True, null=True)
     mode_of_entry= models.CharField(max_length=10, blank=True, null=True)
-    status= models.CharField(max_length=155, blank=True, null=True, choices=ADMISSION_CHOICES, default="pending")
+    status= models.CharField(max_length=155, blank=True, null=True)
     student_type= models.CharField(max_length=255, blank=True, null=True)
     next_kin_name= models.CharField(max_length=255, blank=True, null=True)
     next_kin_relationship= models.CharField(max_length=255, blank=True, null=True)
@@ -211,6 +220,13 @@ class Staff(models.Model):
     first_name= models.CharField(max_length=255, blank=True, null=True)
     last_name= models.CharField(max_length=255, blank=True, null=True)
     middle_name= models.CharField(max_length=255, blank=True, null=True) 
+    email = models.EmailField(
+        verbose_name='email address',
+        max_length=255,
+        unique=True,
+        blank=True, 
+        null=True
+    )
     nationality= models.CharField(max_length=100, blank=True, null=True)
     state= models.CharField(max_length=100, blank=True, null=True)
     lga= models.CharField(max_length=100, blank=True, null=True)
@@ -221,7 +237,14 @@ class Staff(models.Model):
     position= models.CharField(max_length=15, blank=True, null=True)
     staff_type= models.CharField(max_length=255, blank=True, null=True)
     date_created= models.DateTimeField(auto_now_add=True)
+    picture= models.ImageField(upload_to=staff_image_location, blank=True, null=True)
     timestamp = models.DateTimeField(auto_now=True)
+
+    @property
+    def pictureURL(self):
+        if self.picture:
+            return self.picture.url
+        return None
 
     def __str__(self):
         return f"{self.last_name.upper()}, {self.first_name} {self.middle_name}"

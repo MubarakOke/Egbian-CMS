@@ -1,6 +1,6 @@
 from django.urls import path
 from operations.views import (DashboardView, SessionCreateListView, RoleCreateListView, RoleDetailView,
-                            StaffCreateListView, FacultyCreateListView, FacultyDetailView, DepartmentCreateListView, DepartmentDetailView,
+                            StaffCreateListView, StaffDetailView, FacultyCreateListView, FacultyDetailView, DepartmentCreateListView, DepartmentDetailView,
                             ApplicantCreateListView, ApplicantUpdateView, ApplicantStatusChangeView,
                             StudentCreateListView, StudentDetailView,
                             CourseCreateListView, CourseDetailView,
@@ -21,6 +21,7 @@ urlpatterns = [
     path('student/<int:id>/', StudentDetailView.as_view(), name='detail_student'),
     # Staff
     path('staff/', StaffCreateListView.as_view(), name='create_list_staff'),
+    path('staff/<int:id>/', StaffDetailView.as_view(), name='detail_staff'),
     # Dashboard
     path('dashboard/', DashboardView.as_view(), name='dashboard'),
     # Role

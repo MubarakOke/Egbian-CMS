@@ -60,6 +60,11 @@ class FacultyCreateListSerializer(serializers.ModelSerializer):
                     'id',
                     'name'
                 ]
+                
+    def validate(self, attrs):
+        if attrs.get('name'):
+            attrs['name']= attrs.get('name').title()
+        return attrs
 
     def create(self, validated_data):
         try:
@@ -76,7 +81,7 @@ class FacultyCreateListSerializer(serializers.ModelSerializer):
 
 class DepartmentCreateListSerializer(serializers.ModelSerializer):
     faculty= FacultyCreateListSerializer(read_only=True)
-    faculty_id= serializers.CharField(write_only=True, required=False)
+    faculty_id= serializers.SlugRelatedField(slug_field="id", queryset=Faculty.objects.all(), required=False, write_only=True)
     class Meta:
         model= Department
         fields= [ 
@@ -86,23 +91,25 @@ class DepartmentCreateListSerializer(serializers.ModelSerializer):
                     'faculty',
                     'faculty_id'
                 ]
-    
+    def validate(self, attrs):
+        if attrs.get('name'):
+            attrs['name']= attrs.get('name').title()
+        if attrs.get('short_name'):
+            attrs['short_name']= attrs.get('short_name').upper()
+        return attrs
+
     def create(self, validated_data):
         try:
-            faculty_object= Faculty.objects.get(id=validated_data.get('faculty_id'))
-            department_obj= Department.objects.create(name=validated_data.get('name').lower(),
-                                                      short_name=validated_data.get('short_name').lower(),
-                                                      faculty=faculty_object)
+            department_obj= Department.objects.create(name=validated_data.get('name'),
+                                                      short_name=validated_data.get('short_name'),
+                                                      faculty=validated_data.get('faculty_id'))
         except IntegrityError:
-            raise serializers.ValidationError("Department with this name already exits")
-        except Faculty.DoesNotExist:
-            raise serializers.ValidationError("Falculty with this id does not exist")
+            raise serializers.ValidationError("Department with this info already exits")
         return department_obj
 
 class DepartmentUpdateSerializer(serializers.ModelSerializer):
     faculty= FacultyCreateListSerializer(read_only=True)
-    name= serializers.CharField(required=False)
-    short_name= serializers.CharField(required=False)
+    faculty_id= serializers.SlugRelatedField(slug_field="id", queryset=Faculty.objects.all(), required=False, write_only=True)
     class Meta:
         model= Department
         fields= [ 
@@ -113,16 +120,21 @@ class DepartmentUpdateSerializer(serializers.ModelSerializer):
                     'faculty_id'
                 ]
 
+    def validate(self, attrs):
+        if attrs.get('name'):
+            attrs['name']= attrs.get('name').title()
+        if attrs.get('short_name'):
+            attrs['short_name']= attrs.get('short_name').upper()
+        return attrs
+
     def update(self, instance, validated_data):
-        instance.name= validated_data.get('name', instance.name)
-        instance.short_name= validated_data.get('short_name', instance.short_name)
-        if validated_data.get('faculty_id'):
-            try:
-                faculty_object= Faculty.objects.get(id=validated_data.get('faculty_id'))
-                instance.faculty= faculty_object
-            except:
-                raise serializers.ValidationError() 
-        instance.save()
+        try:
+            instance.name= validated_data.get('name', instance.name)
+            instance.short_name= validated_data.get('short_name', instance.short_name)
+            instance.faculty= validated_data.get('faculty_id', instance.faculty)
+            instance.save()
+        except IntegrityError:
+            raise serializers.ValidationError("Department with this info already exits")
         return instance
 
 class ApplicantSerializer(serializers.ModelSerializer):
@@ -160,8 +172,15 @@ class ApplicantSerializer(serializers.ModelSerializer):
                 'next_kin_relationship',
                 'next_kin_email',
                 'next_kin_address',
-                'next_kin_phone'
+                'next_kin_phone',
+                'application_fee_paid'
                 ]
+    
+    def validate_email(self, value):
+        email= value.lower()
+        if Applicant.objects.filter(email=email).exists():
+            raise serializers.ValidationError(["Email already exists"])
+        return email
 
     def create(self, validated_data): 
         try:
@@ -178,7 +197,7 @@ class ApplicantSerializer(serializers.ModelSerializer):
         user_obj.username= username
         user_obj.set_password(validated_data.pop('password', None))
 
-        applicant_obj = Applicant.objects.create(user=user_obj, session= session_obj, calendar=calendar, email= validated_data.get('email').lower(), phone=validated_data.get('phone') )        
+        applicant_obj = Applicant.objects.create(user=user_obj, session= session_obj, calendar=calendar, email= validated_data.get('email'), phone=validated_data.get('phone') )        
         # Constructing email parameters
         try:
             subject= 'Login details to Egbian College of Health'
@@ -191,6 +210,7 @@ class ApplicantSerializer(serializers.ModelSerializer):
             user_obj.save()
             applicant_obj.save()
         except:
+            user_obj.delete()
             raise serializers.ValidationError({"details":"email not sent"})
         return applicant_obj
 
@@ -229,26 +249,46 @@ class ApplicantUpdateSerializer(serializers.ModelSerializer):
                 'next_kin_relationship',
                 'next_kin_email',
                 'next_kin_address',
-                'next_kin_phone'
+                'next_kin_phone',
+                'application_fee_paid'
                 ]
 
+    def validate(self, attrs):
+        if attrs.get('first_name'):
+            attrs['first_name']= attrs.get('first_name').title()
+        if attrs.get('last_name'):
+            attrs['last_name']= attrs.get('last_name').title()
+        if attrs.get('middle_name'):
+            attrs['middle_name']= attrs.get('middle_name').title()
+        if attrs.get('nationality'):
+            attrs['nationality']= attrs.get('nationality').title()
+        if attrs.get('state'):
+            attrs['state']= attrs.get('state').title()
+        if attrs.get('lga'):
+            attrs['lga']= attrs.get('lga').title()
+        if attrs.get('mode_of_entry'):
+            attrs['mode_of_entry']= attrs.get('mode_of_entry').lower()
+        if attrs.get('jamb_reg_no'):
+            attrs['jamb_reg_no']= attrs.get('jamb_reg_no').upper()
+        return attrs
+
     def update(self, instance, validated_data):
-        instance.first_name = validated_data.get('first_name', instance.first_name).lower()
-        instance.last_name= validated_data.get('last_name', instance.last_name).lower()
-        instance.middle_name= validated_data.get('middle_name', instance.middle_name).lower()
+        instance.first_name = validated_data.get('first_name', instance.first_name)
+        instance.last_name= validated_data.get('last_name', instance.last_name)
+        instance.middle_name= validated_data.get('middle_name', instance.middle_name)
         instance.phone= validated_data.get('phone', instance.phone)
-        instance.nationality= validated_data.get('nationality', instance.nationality).lower()
-        instance.state= validated_data.get('state', instance.state).lower()
-        instance.lga= validated_data.get('lga', instance.lga).lower()
-        instance.jamb_reg_no= validated_data.get('jamb_reg_no', instance.jamb_reg_no).upper()
+        instance.nationality= validated_data.get('nationality', instance.nationality)
+        instance.state= validated_data.get('state', instance.state)
+        instance.lga= validated_data.get('lga', instance.lga)
+        instance.jamb_reg_no= validated_data.get('jamb_reg_no', instance.jamb_reg_no)
         instance.dob= validated_data.get('dob', instance.dob)
-        instance.gender= validated_data.get('gender', instance.gender).lower()
+        instance.gender= validated_data.get('gender', instance.gender)
         instance.picture= validated_data.get('picture', instance.picture)
         instance.primary_cert= validated_data.get('primary_cert', instance.primary_cert)
         instance.birth_cert= validated_data.get('birth_cert', instance.birth_cert)
         instance.secondary_cert= validated_data.get('secondary_cert', instance.secondary_cert)
         instance.testimonial= validated_data.get('testimonial', instance.testimonial)
-        instance.mode_of_entry= validated_data.get('mode_of_entry', instance.mode_of_entry).lower()
+        instance.mode_of_entry= validated_data.get('mode_of_entry', instance.mode_of_entry)
         instance.department= validated_data.get('department_id', instance.department)
         instance.next_kin_name= validated_data.get('next_kin_name', instance.next_kin_name)
         instance.next_kin_relationship= validated_data.get('next_kin_relationship', instance.next_kin_relationship)
@@ -260,13 +300,18 @@ class ApplicantUpdateSerializer(serializers.ModelSerializer):
 
 class StaffCreateListSerializer(serializers.ModelSerializer):
     user= UserSerializer(read_only=True)
+    password= serializers.CharField(write_only=True, required=True)
+    department= DepartmentCreateListSerializer(read_only=True)
+    department_id= serializers.SlugRelatedField(slug_field="id", queryset=Department.objects.all(), required=False, write_only=True)
     class Meta:
         model= Staff
         fields= [
+                    'id',
                     'user',
                     'first_name',
                     'last_name',
                     'middle_name',
+                    'email',
                     'nationality',
                     'state',
                     'lga',
@@ -274,21 +319,51 @@ class StaffCreateListSerializer(serializers.ModelSerializer):
                     'dob',
                     'gender',
                     'department',
-                    'staff_type'
+                    'department_id',
+                    'staff_type',
+                    'picture',
+                    'password'
                 ]
+
+    def validate(self, attrs):
+        if attrs.get('first_name'):
+            attrs['first_name']= attrs.get('first_name').title()
+        if attrs.get('last_name'):
+            attrs['last_name']= attrs.get('last_name').title()
+        if attrs.get('middle_name'):
+            attrs['middle_name']= attrs.get('middle_name').title()
+        if attrs.get('nationality'):
+            attrs['nationality']= attrs.get('nationality').title()
+        if attrs.get('state'):
+            attrs['state']= attrs.get('state').title()
+        if attrs.get('lga'):
+            attrs['lga']= attrs.get('lga').title()
+        if attrs.get('staff_type'):
+            attrs['staff_type']= attrs.get('staff_type').lower()
+        return attrs
+
+    def validate_email(self, value):
+        email= value.lower()
+        if Applicant.objects.filter(email=email).exists():
+            raise serializers.ValidationError(["Email already exists"])
+        return email
+
     def create(self, validated_data): 
-        user_obj= User.objects.create(
-                                    user_type= "staff"
-                                    )
         try:
             session_obj= Session.objects.get(current_session=True)
         except:
             raise serializers.ValidationError({"details":"Session not set"}) 
-        user_obj.username= f"Egb{str(session_obj.start_year)}{str(user_obj.id)}"
+        staff_id= int(str(session_obj.start_year) + "0000000")
+        user_obj= User.objects.create(
+                                    user_type= "staff"
+                                    )
+ 
+        staff_id= f"EGB{staff_id + user_obj.id}ff"
+        print("staff", staff_id)
+        user_obj.username= staff_id
         user_obj.set_password(validated_data.pop('password'))
 
         staff_obj = Staff.objects.create(user=user_obj, 
-                                        session= session_obj, 
                                         email= validated_data.get('email'),
                                         first_name= validated_data.get('first_name'),
                                         last_name= validated_data.get('last_name'),
@@ -299,13 +374,84 @@ class StaffCreateListSerializer(serializers.ModelSerializer):
                                         phone= validated_data.get('phone'),
                                         dob= validated_data.get('dob'),
                                         gender= validated_data.get('gender'),
-                                        department= validated_data.get('department'),
+                                        department= validated_data.get('department_id'),
                                         staff_type= validated_data.get('staff_type').lower()
                                         )
+        try:
+            subject= 'Login details to Egbian College of Health'
+            message= f'Dear Staff, \nUse the ID below and your password to access the applicant portal\n \n \nAccout ID: {staff_obj.user.username} \n \n \nPlease do not reply to this email. This email is not monitored'
+            from_email= settings.EMAIL_HOST_USER
+            recipient_list= [staff_obj.email]
+            fail_silently=False
+            user_obj.save()
+            staff_obj.save()
+             # Sending email on a new thread
+            send_mail(subject, message, from_email, recipient_list, fail_silently)
+        except:
+            user_obj.delete()
+            raise serializers.ValidationError({"details":"email not sent"})
         return staff_obj
 
+class StaffUpdateSerializer(serializers.ModelSerializer):
+    user= UserSerializer(read_only=True)
+    department= DepartmentCreateListSerializer(read_only=True)
+    department_id= serializers.SlugRelatedField(slug_field="id", queryset=Department.objects.all(), required=False, write_only=True)
+    class Meta:
+        model= Staff
+        fields= [
+                    'id',
+                    'user',
+                    'first_name',
+                    'last_name',
+                    'middle_name',
+                    'email',
+                    'nationality',
+                    'state',
+                    'lga',
+                    'phone',
+                    'dob',
+                    'gender',
+                    'department',
+                    'department_id',
+                    'staff_type',
+                    'picture',
+                ]
+
+    def validate(self, attrs):
+        if attrs.get('first_name'):
+            attrs['first_name']= attrs.get('first_name').title()
+        if attrs.get('last_name'):
+            attrs['last_name']= attrs.get('last_name').title()
+        if attrs.get('middle_name'):
+            attrs['middle_name']= attrs.get('middle_name').title()
+        if attrs.get('nationality'):
+            attrs['nationality']= attrs.get('nationality').title()
+        if attrs.get('state'):
+            attrs['state']= attrs.get('state').title()
+        if attrs.get('lga'):
+            attrs['lga']= attrs.get('lga').title()
+        if attrs.get('staff_type'):
+            attrs['staff_type']= attrs.get('staff_type').lower()
+        return attrs
+    
+    def update(self, instance, validated_data):
+        instance.first_name = validated_data.get('first_name', instance.first_name)
+        instance.last_name= validated_data.get('last_name', instance.last_name)
+        instance.middle_name= validated_data.get('middle_name', instance.middle_name)
+        instance.phone= validated_data.get('phone', instance.phone)
+        instance.nationality= validated_data.get('nationality', instance.nationality)
+        instance.state= validated_data.get('state', instance.state)
+        instance.lga= validated_data.get('lga', instance.lga)
+        instance.dob= validated_data.get('dob', instance.dob)
+        instance.gender= validated_data.get('gender', instance.gender)
+        instance.picture= validated_data.get('picture', instance.picture)
+        instance.staff_type= validated_data.get('staff_type', instance.staff_type)
+        instance.department= validated_data.get('department_id', instance.department)
+        instance.save()
+        return instance
+
 class RoleCreateListSerializer(serializers.ModelSerializer):
-    staff= StaffCreateListSerializer(read_only=True)
+    staff= StaffUpdateSerializer(read_only=True)
     class Meta:
         model= Role
         fields= [ 
@@ -359,11 +505,20 @@ class CourseSerializer(serializers.ModelSerializer):
                 'semester'
         ]
 
-class CourseCreateListSerializer(serializers.ModelSerializer):
+    def validate(self, attrs):
+        if attrs.get('course_name'):
+            attrs['course_name']= attrs.get('course_name').title()
+        if attrs.get('course_code'):
+            attrs['course_code']= attrs.get('course_code').upper()
+        if attrs.get('semester'):
+            attrs['semester']= attrs.get('semester').lower()
+        return attrs
+
+class CourseCreateListUpdateSerializer(serializers.ModelSerializer):
     department= DepartmentCreateListSerializer(read_only=True)
     prerequsite_for= CourseSerializer(read_only=True)
     department_id= serializers.SlugRelatedField(slug_field="id", queryset=Department.objects.all(), required=True, write_only=True)
-    prerequsite_for_id= serializers.SlugRelatedField(slug_field="id", queryset=Course.objects.all(), required=False, write_only=True, allow_null=True)#serializers.CharField(write_only=True)
+    prerequsite_for_id= serializers.SlugRelatedField(slug_field="id", queryset=Course.objects.all(), required=False, write_only=True, allow_null=True)
     class Meta:
         model= Course
         fields= [
@@ -380,6 +535,15 @@ class CourseCreateListSerializer(serializers.ModelSerializer):
                 'semester'
         ]
 
+    def validate(self, attrs):
+        if attrs.get('course_name'):
+            attrs['course_name']= attrs.get('course_name').title()
+        if attrs.get('course_code'):
+            attrs['course_code']= attrs.get('course_code').upper()
+        if attrs.get('semester'):
+            attrs['semester']= attrs.get('semester').lower()
+        return attrs
+
     def create(self, validated_data):
         try:
             course_obj= Course.objects.create(course_name=validated_data.get('course_name'),
@@ -394,12 +558,27 @@ class CourseCreateListSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError({"detail":"requirement with same department, Course name and level already exists"})
         return course_obj
 
+    def update(self, instance, validated_data):
+        try:
+            instance.course_name = validated_data.get('course_name', instance.course_name)
+            instance.course_code= validated_data.get('course_code', instance.course_code)
+            instance.course_unit= validated_data.get('course_unit', instance.course_unit)
+            instance.compulsory= validated_data.get('compulsory', instance.compulsory)
+            instance.prerequsite_for= validated_data.get('prerequsite_for_id', instance.prerequsite_for)
+            instance.department= validated_data.get('department_id', instance.department)
+            instance.semester= validated_data.get('semester', instance.semester)
+            instance.level= validated_data.get('level', instance.level)
+        except IntegrityError:
+            raise serializers.ValidationError({"detail":"requirement with same department, Course name and level already exists"})
+        instance.save()
+        return instance
+
 class CourseRegistrationCreateListSerializer(serializers.ModelSerializer):
     total_credit_first= serializers.CharField(write_only=True)
     total_credit_second= serializers.CharField(write_only=True)
     course_list_first_selected= serializers.ListField(write_only=True, required=True)
     course_list_second_selected= serializers.ListField(write_only=True, required=True)
-    course= CourseCreateListSerializer(read_only=True)
+    course= CourseCreateListUpdateSerializer(read_only=True)
     class Meta:
         model= CourseRegistration
         fields= [
