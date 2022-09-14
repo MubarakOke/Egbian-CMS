@@ -31,7 +31,8 @@ DEBUG = True
 
 ALLOWED_HOSTS = ['127.0.0.1', 'egbian.herokuapp.com']
 CORS_ALLOWED_ORIGINS= [
-    "http://localhost:3000"
+    "https://project-egbiancohst.web.app",
+    "http://localhost:3000",
 ]
 
 # Application definition

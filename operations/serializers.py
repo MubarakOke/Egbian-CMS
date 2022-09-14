@@ -295,6 +295,7 @@ class ApplicantUpdateSerializer(serializers.ModelSerializer):
         instance.next_kin_email= validated_data.get('next_kin_email', instance.next_kin_email)
         instance.next_kin_address= validated_data.get('next_kin_address', instance.next_kin_address)
         instance.next_kin_phone= validated_data.get('next_kin_phone', instance.next_kin_phone)
+        instance.application_fee_paid= validated_data.get('application_fee_paid', instance.application_fee_paid)
         instance.save()
         return instance
 
