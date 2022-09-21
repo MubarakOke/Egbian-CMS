@@ -5,7 +5,7 @@ from rest_framework.parsers import JSONParser, MultiPartParser, FormParser
 from rest_framework.views import APIView
 from django.conf import settings
 from operations.renderers import DefaultRenderer
-from operations.models import Applicant, Session, Staff, Role, Department, Faculty, Course, CourseRegistration, CourseRequirement, Result, Payment, Fee
+from operations.models import Applicant, Session, Staff, Role, Department, Faculty, Course, CourseRegistration, CourseRequirement, Result, Payment, Fee, BlogPost, Stakeholder
 from operations import serializers
 from rest_framework.response import Response
 from operations.utils import EmailThread
@@ -477,7 +477,9 @@ class ApplicantStatusChangeView(APIView):
                     "next_kin_address": applicant_obj.next_kin_address,
                     "next_kin_phone": applicant_obj.next_kin_phone,
                     "secondary_cert": applicant_obj.secondary_cert,
-                    "testimonial": applicant_obj.testimonial
+                    "testimonial": applicant_obj.testimonial,
+                    "result_first": applicant_obj.result_first,
+                    "result_second":applicant_obj.result_second
                     }
             student_obj, created= Student.objects.update_or_create(user__username=applicant_obj.user.username, defaults=data)
             try:
@@ -519,8 +521,67 @@ class TuitionPaymentView(APIView):
         # fee_obj= Fee.objects.get(Q(name="tuition") & Q(session=))
 
 
-        
+class BlogPostCreateView(CreateAPIView):
+    parser_classes = (JSONParser, MultiPartParser, FormParser)
+    renderer_classes= [DefaultRenderer]
+    serializer_class= serializers.BlogPostSerializer
+    queryset= BlogPost.objects.all()
 
+    def post(self, request, *args, **kwargs):
+        return self.create(request, *args, **kwargs)
+
+class BlogPostListView(ListAPIView):
+    parser_classes = (JSONParser, MultiPartParser, FormParser)
+    renderer_classes= [DefaultRenderer]
+    serializer_class= serializers.BlogPostSerializer
+    queryset= BlogPost.objects.all()
+    permission_classes= []
+
+class BlogPostDetailView(UpdateModelMixin, DestroyModelMixin, RetrieveAPIView):
+    parser_classes = (JSONParser, MultiPartParser, FormParser)
+    renderer_classes= [DefaultRenderer]
+    serializer_class= serializers.BlogPostSerializer
+    queryset= BlogPost.objects.all()
+    lookup_field= 'id'
+
+    def put(self, request, *args, **kwargs):
+        return self.update(request, *args, **kwargs)
+    
+    def patch(self, request, *args, **kwargs):
+        return self.update(request, *args, kwargs)
+
+    def delete(self, request, *args, **kwargs):
+        return self.destroy(request, *args, **kwargs)
+
+class StakeholderCreateView(CreateAPIView):
+    parser_classes = (JSONParser, MultiPartParser, FormParser)
+    renderer_classes= [DefaultRenderer]
+    serializer_class= serializers.StakeholderSerializer
+    queryset= Stakeholder.objects.all()
+
+
+class StakeholderListView(ListAPIView):
+    parser_classes = (JSONParser, MultiPartParser, FormParser)
+    renderer_classes= [DefaultRenderer]
+    serializer_class= serializers.StakeholderSerializer
+    queryset= Stakeholder.objects.all()
+    permission_classes= []
+
+class StakeholderDetailView(UpdateModelMixin, DestroyModelMixin, RetrieveAPIView):
+    parser_classes = (JSONParser, MultiPartParser, FormParser)
+    renderer_classes= [DefaultRenderer]
+    serializer_class= serializers.StakeholderSerializer
+    queryset= Stakeholder.objects.all()
+    lookup_field= 'id'
+
+    def put(self, request, *args, **kwargs):
+        return self.update(request, *args, **kwargs)
+    
+    def patch(self, request, *args, **kwargs):
+        return self.update(request, *args, kwargs)
+
+    def delete(self, request, *args, **kwargs):
+        return self.destroy(request, *args, **kwargs)
 
 
 

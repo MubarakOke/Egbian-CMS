@@ -2,7 +2,7 @@ from functools import reduce
 from rest_framework import serializers
 from django.db.utils import IntegrityError
 from accounts.serializers import UserSerializer
-from operations.models import Applicant, Session, Staff, Role, Department, Faculty, Course, CourseRegistration, Result, Student, CourseRequirement, CourseRegistrationStatus, Payment
+from operations.models import Applicant, Session, Staff, Role, Department, Faculty, Course, CourseRegistration, Result, Student, CourseRequirement, CourseRegistrationStatus, Payment, BlogPost, Stakeholder
 from django.db.utils import IntegrityError
 from django.contrib.auth import get_user_model
 from operations.utils import EmailThread
@@ -173,7 +173,9 @@ class ApplicantSerializer(serializers.ModelSerializer):
                 'next_kin_email',
                 'next_kin_address',
                 'next_kin_phone',
-                'application_fee_paid'
+                'application_fee_paid',
+                'result_first',
+                'result_second'
                 ]
     
     def validate_email(self, value):
@@ -250,7 +252,9 @@ class ApplicantUpdateSerializer(serializers.ModelSerializer):
                 'next_kin_email',
                 'next_kin_address',
                 'next_kin_phone',
-                'application_fee_paid'
+                'application_fee_paid',
+                'result_first',
+                'result_second'
                 ]
 
     def validate(self, attrs):
@@ -296,6 +300,8 @@ class ApplicantUpdateSerializer(serializers.ModelSerializer):
         instance.next_kin_address= validated_data.get('next_kin_address', instance.next_kin_address)
         instance.next_kin_phone= validated_data.get('next_kin_phone', instance.next_kin_phone)
         instance.application_fee_paid= validated_data.get('application_fee_paid', instance.application_fee_paid)
+        instance.result_first= validated_data.get('result_first', instance.result_first)
+        instance.result_second= validated_data.get('result_second', instance.result_second)
         instance.save()
         return instance
 
@@ -694,6 +700,8 @@ class StudentCreateListSerializer(serializers.ModelSerializer):
                     'birth_cert',
                     'secondary_cert',
                     'testimonial',
+                    'result_first',
+                    'result_second',
                     'mode_of_entry',
                     'status',
                     'student_type'
@@ -713,6 +721,30 @@ class PaymentSerializer(serializers.ModelSerializer):
                 "verified",
                 "timestamp",
                 "date_made"
+                ]
+
+class BlogPostSerializer(serializers.ModelSerializer):
+    class Meta:
+        model= BlogPost
+        fields= [
+                "id",
+                "title",
+                "content",
+                "picture",
+                "created_at",
+                "timestamp",
+                ]
+
+class StakeholderSerializer(serializers.ModelSerializer):
+    class Meta:
+        model= Stakeholder
+        fields= [
+                "id",
+                "name",
+                "title",
+                "picture",
+                "created_at",
+                "timestamp",
                 ]
 
 # class CourseRegistrationCreateListSerializer(serializers.ModelSerializer):

@@ -5,7 +5,9 @@ from operations.views import (DashboardView, SessionCreateListView, RoleCreateLi
                             StudentCreateListView, StudentDetailView,
                             CourseCreateListView, CourseDetailView,
                             CourseRequirementCreateListView, CourseRequirementdetailView,
-                            CourseRegistrationListCreateView, CourseToRegisterView, CourseWareView,)
+                            CourseRegistrationListCreateView, CourseToRegisterView, CourseWareView,
+                            BlogPostCreateView, BlogPostListView, BlogPostDetailView,
+                            StakeholderCreateView, StakeholderListView, StakeholderDetailView)
 
 app_name= 'operations'
 
@@ -44,5 +46,12 @@ urlpatterns = [
     path('course/registration/info/', CourseToRegisterView.as_view(), name='create_registration_course'),
     # Course Wares
     path('courseware/', CourseWareView.as_view(), name='course_wares'),
-
+    # blog
+    path('blog/', BlogPostCreateView.as_view(), name='create_blog_post'),
+    path('blog/list/', BlogPostListView.as_view(), name='list_blog_post'),
+    path('blog/<int:id>/', BlogPostDetailView.as_view(), name='detail_blog_post'),
+    # stakeholder
+    path('stakeholder/', StakeholderCreateView.as_view(), name='create_stakeholder'),
+    path('stakeholder/list/', StakeholderListView.as_view(), name='list_stakeholder'),
+    path('stakeholder/<int:id>/', StakeholderDetailView.as_view(), name='detail_stakeholder'),
 ]

@@ -18,8 +18,20 @@ def applicant_image_location(instance, filename):
 def applicant_secondary_cert_location(instance, filename):
     return f"Applicant/{instance.email}/secondary_cert/{filename}"
 
+def applicant_result_first_location(instance, filename):
+    return f"Applicant/{instance.email}/result_first/{filename}"
+
+def applicant_result_second_location(instance, filename):
+    return f"Applicant/{instance.email}/result_second/{filename}"
+
 def applicant_testimonial_location(instance, filename):
     return f"Applicant/{instance.email}/testimonial/{filename}"
+
+def blog_image_location(instance, filename):
+    if len(instance.title) > 10:
+        return f"blog/{instance.title[10]}/photo/{filename}"
+    else:
+        return f"blog/{instance.title}/photo/{filename}"
 
 def staff_image_location(instance, filename):
     return f"Applicant/{instance.email}/testimonial/{filename}"
@@ -88,6 +100,8 @@ class Applicant(models.Model):
     picture= models.ImageField(upload_to=applicant_image_location, blank=True, null=True)
     primary_cert= models.FileField(upload_to=applicant_primary_cert_location, blank=True, null=True)
     secondary_cert= models.FileField(upload_to=applicant_secondary_cert_location, blank=True, null=True)
+    result_first= models.FileField(upload_to=applicant_result_first_location, blank=True, null=True)
+    result_second= models.FileField(upload_to=applicant_result_second_location, blank=True, null=True)
     birth_cert= models.FileField(upload_to=applicant_birth_cert_location, blank=True, null=True)
     testimonial= models.FileField(upload_to=applicant_testimonial_location, blank=True, null=True)
     mode_of_entry= models.CharField(max_length=10, blank=True, null=True)
@@ -118,6 +132,18 @@ class Applicant(models.Model):
     def secondary_certURL(self):
         if self.secondary_cert:
             return self.secondary_cert.url
+        return None
+    
+    @property
+    def result_firstURL(self):
+        if self.result_first:
+            return self.result_first.url
+        return None
+    
+    @property
+    def result_secondURL(self):
+        if self.result_second:
+            return self.result_second.url
         return None
         
     @property
@@ -171,6 +197,8 @@ class Student(models.Model):
     birth_cert= models.FileField(upload_to=applicant_birth_cert_location, blank=True, null=True)
     secondary_cert= models.FileField(upload_to=applicant_secondary_cert_location, blank=True, null=True)
     testimonial= models.FileField(upload_to=applicant_testimonial_location, blank=True, null=True)
+    result_first= models.FileField(upload_to=applicant_result_first_location, blank=True, null=True)
+    result_second= models.FileField(upload_to=applicant_result_second_location, blank=True, null=True)
     mode_of_entry= models.CharField(max_length=10, blank=True, null=True)
     status= models.CharField(max_length=155, blank=True, null=True)
     student_type= models.CharField(max_length=255, blank=True, null=True)
@@ -198,6 +226,18 @@ class Student(models.Model):
     def secondary_certURL(self):
         if self.secondary_cert:
             return self.secondary_cert.url
+        return None
+    
+    @property
+    def result_firstURL(self):
+        if self.result_first:
+            return self.result_first.url
+        return None
+    
+    @property
+    def result_secondURL(self):
+        if self.result_second:
+            return self.result_second.url
         return None
 
     @property
@@ -382,7 +422,20 @@ class Fee(models.Model):
             models.UniqueConstraint(fields=['department', 'calendar', 'amount'], name='FeeConstraint')
         ]
 
+class BlogPost(models.Model): 
+    title= models.CharField(max_length=250, blank=True, null=True)
+    content= models.TextField(blank=True, null=True)
+    picture= models.ImageField(upload_to=blog_image_location, blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True,)
+    timestamp = models.DateTimeField(auto_now=True,)
 
+
+class Stakeholder(models.Model): 
+    name= models.CharField(max_length=250, blank=True, null=True)
+    title= models.CharField(max_length=250, blank=True, null=True)
+    picture= models.ImageField(upload_to=blog_image_location, blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True,)
+    timestamp = models.DateTimeField(auto_now=True,)
 
 
 
